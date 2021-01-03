@@ -50,6 +50,8 @@ class DatabaseHelper {
     taskMapList.forEach((taskMap) {
       taskList.add(Task.fromMap(taskMap));
     });
+    // sort tasks by date
+    taskList.sort((taskA, taskB) => taskA.date.compareTo(taskB.date));
     return taskList;
   }
 
