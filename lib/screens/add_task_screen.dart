@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:todo/helpers/database_helper.dart';
 import 'package:todo/models/task_model.dart';
+import 'package:todo/screens/todo_list_screen.dart';
 
 class AddTaskScreen extends StatefulWidget {
   final Task task;
-  final Function updateTaskList;
-  AddTaskScreen({this.task, this.updateTaskList});
+  AddTaskScreen({this.task});
   @override
   _AddTaskScreenState createState() => _AddTaskScreenState();
 }
@@ -43,11 +43,27 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         // OR update existing task
       } else {
         task.status = widget.task.status;
+        task.id = widget.task.id;
         DatabaseHelper.instance.updateTask(task);
       }
-      widget.updateTaskList();
-      Navigator.pop(context);
+      // widget.updateTaskList();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ToDoListScreen(),
+        ),
+      );
     }
+  }
+
+  _delete() {
+    DatabaseHelper.instance.deleteTask(widget.task.id);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ToDoListScreen(),
+      ),
+    );
   }
 
   @override
@@ -84,7 +100,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ToDoListScreen(),
+                      ),
+                    ),
                     child: Icon(
                       Icons.arrow_back_ios,
                       size: 30,
@@ -93,7 +114,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   ),
                   SizedBox(height: 20),
                   Text(
-                    'add Task',
+                    widget.task == null ? 'Add Task' : 'Update Task',
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 40,
@@ -201,14 +222,35 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                           child: FlatButton(
                             onPressed: _submit,
                             child: Text(
-                              'Add',
+                              widget.task == null ? 'Add' : 'Update',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
                               ),
                             ),
                           ),
-                        )
+                        ),
+                        widget.task != null
+                            ? Container(
+                                margin: EdgeInsets.symmetric(vertical: 20),
+                                height: 60,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor,
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: FlatButton(
+                                  onPressed: _delete,
+                                  child: Text(
+                                    'Delete',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : SizedBox.shrink(),
                       ],
                     ),
                   )
