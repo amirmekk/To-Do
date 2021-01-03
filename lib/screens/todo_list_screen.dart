@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:todo/helpers/database_helper.dart';
+import 'package:todo/models/task_model.dart';
 import 'package:todo/screens/add_task_screen.dart';
 
 class ToDoListScreen extends StatefulWidget {
@@ -7,20 +10,62 @@ class ToDoListScreen extends StatefulWidget {
 }
 
 class _ToDoListScreenState extends State<ToDoListScreen> {
-  Widget _buildTask(int index) {
+  Future<List<Task>> _taskList;
+  final DateFormat _dateFormatter = DateFormat('MMM dd, yyyy');
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTaskList();
+  }
+
+  _updateTaskList() async {
+    setState(() {
+      _taskList = DatabaseHelper.instance.getTaskList();
+    });
+  }
+
+  Widget _buildTask(Task task) {
     return Padding(
       padding: EdgeInsets.symmetric(
           horizontal: MediaQuery.of(context).size.width * 0.05),
       child: Column(
         children: [
           ListTile(
-            title: Text('Task title'),
-            subtitle: Text('Jun 30, 1999 · High '),
+            onTap: () =>
+                Navigator.of(context).pushReplacement(MaterialPageRoute(
+                    builder: (_) => AddTaskScreen(
+                          task: task,
+                          //updateTaskList: _updateTaskList,
+                        ))),
+            title: Text(
+              task.title,
+              style: TextStyle(
+                fontSize: 18,
+                decoration: task.status == 0
+                    ? TextDecoration.none
+                    : TextDecoration.lineThrough,
+              ),
+            ),
+            subtitle: Text(
+              '${_dateFormatter.format(task.date)} · ${task.priority}',
+              style: TextStyle(
+                fontSize: 15,
+                decoration: task.status == 0
+                    ? TextDecoration.none
+                    : TextDecoration.lineThrough,
+              ),
+            ),
             trailing: Checkbox(
               onChanged: (bool value) {
-                print(value);
+                // update task status 1 => completed and 0 => uncompleted
+                task.status = value ? 1 : 0;
+                // update database value
+                DatabaseHelper.instance.updateTask(task);
+                // update local list
+                _updateTaskList();
               },
-              value: true,
+              value: task.status == 1 ? true : false,
               activeColor: Theme.of(context).primaryColor,
             ),
           ),
@@ -34,46 +79,62 @@ class _ToDoListScreenState extends State<ToDoListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
+        onPressed: () => Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => AddTaskScreen(),
+            builder: (_) => AddTaskScreen(
+                // updateTaskList: _updateTaskList,
+                ),
           ),
         ),
         backgroundColor: Theme.of(context).primaryColor,
         child: Icon(Icons.add),
       ),
-      body: ListView.builder(
-        padding: EdgeInsets.symmetric(vertical: 80),
-        itemCount: 10,
-        itemBuilder: (BuildContext context, int index) {
-          if (index == 0) {
-            return Padding(
-              padding: EdgeInsets.symmetric(vertical: 20, horizontal: 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'My Tasks',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    '1 of 299',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
+      body: FutureBuilder(
+        future: _taskList,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return Center(child: CircularProgressIndicator());
           }
-          return _buildTask(index);
+          // completedTaskCount for usage in number of completed tasks percentage
+          final int completedTaskCount = snapshot.data
+              .where((Task task) => task.status == 1)
+              .toList()
+              .length;
+
+          return ListView.builder(
+            padding: EdgeInsets.symmetric(vertical: 80),
+            itemCount: 1 + snapshot.data.length,
+            itemBuilder: (BuildContext context, int index) {
+              if (index == 0) {
+                return Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20, horizontal: 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'My Tasks',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        '$completedTaskCount of ${snapshot.data.length}',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return _buildTask(snapshot.data[index - 1]);
+            },
+          );
         },
       ),
     );
